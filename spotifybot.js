@@ -19,23 +19,37 @@ var bot = controller.spawn({
 }).startRTM();
 
 var init = () => {
-    if(setup.channel) {
-        bot.api.channels.list({},function(err, response) {
-            if (response.hasOwnProperty('channels') && response.ok) {
-                var total = response.channels.length;
-                for (var i = 0; i < total; i++) {
-                    var channel = response.channels[i];
-                    if(channel.name == setup.channel) {
-                        channelId = channel.id;
-                        console.log('** ...chilling out on #' + channel.name);
-                        return;
-                    }
+    bot.api.channels.list({}, function(err, response) {
+        if(err) {
+            throw new Error(err);
+        }
+
+        if (response.hasOwnProperty('channels') && response.ok) {
+            var total = response.channels.length;
+            for (var i = 0; i < total; i++) {
+                var channel = response.channels[i];
+                if(verifyChannel(channel)) {
+                    return;
                 }
             }
+        }
+    });
 
-            throw new Error(err || "Could not find channel: " + setup.channel);
-        });
-    }
+    bot.api.groups.list({}, function(err, response) {
+        if(err) {
+            throw new Error(err);
+        }
+
+        if (response.hasOwnProperty('groups') && response.ok) {
+            var total = response.groups.length;
+            for (var i = 0; i < total; i++) {
+                var channel = response.groups[i];
+                if(verifyChannel(channel)) {
+                    return;
+                }
+            }
+        }
+    });
 };
 
 controller.hears(['help'],'direct_message,direct_mention,mention', function(bot, message) {
@@ -106,6 +120,81 @@ controller.hears(['next'],'direct_message,direct_mention,mention', function(bot,
 });
 
 
+controller.on('bot_channel_join', function(bot, message) {
+    let inviterId = message.inviter;
+    let channelId = message.channel;
+    var inviter, channel;
+
+    let done = () => {
+        if(inviter && channel) {
+            inviteMessage(inviter, channel);
+            verifyChannel(channel);
+        }
+    };
+
+    bot.api.channels.info({channel: channelId}, function(err, response) {
+        if(response && !err) {
+            channel = response.channel;
+            done();
+        }
+    });
+
+    bot.api.users.info({user: inviterId}, function(err, response) {
+        if(response && !err) {
+            inviter = response.user;
+            done();
+        }
+    });
+});
+
+controller.on('bot_group_join', function(bot, message) {
+    let inviterId = message.inviter;
+    let channelId = message.channel;
+    var inviter, channel;
+
+    let done = () => {
+        if(inviter && channel) {
+            inviteMessage(inviter, channel);
+            verifyChannel(channel);
+        }
+    };
+
+    bot.api.groups.info({channel: channelId}, function(err, response) {
+        if(response && !err) {
+            channel = response.group;
+            done();
+        }
+    });
+
+    bot.api.users.info({user:  inviterId}, function(err, response) {
+        if(response && !err) {
+            inviter = response.user;
+            done();
+        }
+    });
+});
+
+
+function inviteMessage(inviter, channel) {
+    Spotify.getTrack(function(err, track){
+        var nowPlaying;
+
+        if(track) {
+            lastTrackId = track.id;
+            nowPlaying = 'Currently playing: '+trackFormatSimple(track);
+        }
+        else {
+            nowPlaying = 'There is nothing currently playing';
+        }
+
+        bot.say({
+            text: `Thanks for inviting me, ${inviter.name}! Good to be here :)\n${nowPlaying}`,
+            channel: channel.id
+        });
+    });
+}
+
+
 setInterval(() => {
     Spotify.getTrack(function(err, track) {
         if(track && (track.id !== lastTrackId)) {
@@ -148,6 +237,16 @@ function formatUptime(uptime) {
 
     uptime = uptime + ' ' + unit;
     return uptime;
+}
+
+function verifyChannel(channel) {
+    if(channel && channel.name && channel.id && setup.channel && channel.name == setup.channel) {
+        channelId = channel.id;
+        console.log('** ...chilling out on #' + channel.name);
+        return true;
+    }
+
+    return false;
 }
 
 init();
