@@ -2,7 +2,7 @@
   "name": "spotifybot",
   "version": "1.0.0",
   "description": "A Slack bot to control Spotify",
-  "main": "index.js",
+  "main": "spotifybot.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
