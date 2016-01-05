@@ -5,6 +5,8 @@ let setup = require('./bot_setup.js');
 let Botkit = require('botkit');
 let Spotify = require('spotify-node-applescript');
 
+let https = require('https');
+
 var os = require('os');
 
 var lastTrackId;
@@ -53,7 +55,13 @@ var init = () => {
 };
 
 controller.hears(['help'],'direct_message,direct_mention,mention', function(bot, message) {
-    bot.reply(message,'You can say these things to me:\nhello - I will greet you back\ninfo - I will tell you about this track\ndetail - I will tell you more about this track\nnext - Fed up with the track? Skip it.');
+    bot.reply(message,'You can say these things to me:\n'+
+        'hello - I will greet you back\n'+
+        'info - I will tell you about this track\n'+
+        'detail - I will tell you more about this track\n'+
+        'next - Fed up with the track? Skip it.\n'+
+        'play / pause - plays or pauses the music\n'+
+        'volume up / down - increases / decreases the volume');
 });
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
@@ -108,7 +116,9 @@ controller.hears(['detail'],'direct_message,direct_mention,mention', function(bo
     Spotify.getTrack(function(err, track){
         if(track) {
             lastTrackId = track.id;
-            bot.reply(message, trackFormatDetail(track));
+            getArtworkUrlFromTrack(track, function(artworkUrl) {
+                bot.reply(message, trackFormatDetail(track)+"\n"+artworkUrl);
+            });
         }
     });
 });
@@ -116,6 +126,106 @@ controller.hears(['detail'],'direct_message,direct_mention,mention', function(bo
 controller.hears(['next'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.next(function(err, track){
         bot.reply(message, 'Skipping to the next track...');
+    });
+});
+
+controller.hears(['play','resume','go'],'direct_message,direct_mention,mention', function(bot, message) {
+    Spotify.getState(function(err, state){
+        if(state.state == 'playing') {
+            bot.reply(message, 'Already playing...');
+            return;
+        }
+
+        Spotify.play(function(){
+            bot.reply(message, 'Resuming playback...');
+        });
+    });
+});
+
+controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,mention', function(bot, message) {
+    Spotify.getState(function(err, state){
+        if(state.state != 'playing') {
+            bot.reply(message, 'Not currently playing...');
+            return;
+        }
+
+        Spotify.pause(function(){
+            bot.reply(message, 'Pausing playback...');
+        });
+    });
+});
+
+controller.hears(['louder( \d+)?','volume up( \d+)?','pump it( \d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
+    var increase = message.match ? parseInt(message.match[1], 10) : undefined;
+    Spotify.getState(function(err, state){
+        var volume = state.volume;
+
+        if(volume == 100) {
+            bot.reply(message, 'Already playing at maximum volume!');
+            return;
+        }
+
+        var newVolume = increase ? volume + increase : volume + 10;
+        if(!newVolume) {
+            return;
+        }
+        else if(newVolume > 100) {
+            newVolume = 100;
+        }
+
+        Spotify.setVolume(newVolume, function(){
+            bot.reply(message, `Increased volume from ${volume} to ${newVolume}`);
+        });
+    });
+});
+
+controller.hears(['quieter( \d+)?','volume down( \d+)?','shhh( \d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
+    var decrease = message.match ? parseInt(message.match[1], 10) : undefined;
+    Spotify.getState(function(err, state){
+        var volume = state.volume;
+
+        if(volume == 0) {
+            bot.reply(message, 'I can\'t go any lower... (my career as a limbo dancer was a short one)');
+            return;
+        }
+
+        var newVolume = decrease ? volume - decrease : volume - 10;
+        if(!newVolume && newVolume !== 0) {
+            return;
+        }
+        else if(newVolume < 0) {
+            newVolume = 0;
+        }
+
+        Spotify.setVolume(newVolume, function(){
+            bot.reply(message, `Decreased volume from ${volume} to ${newVolume}`);
+        });
+    });
+});
+
+controller.hears('set volume (.*)','direct_message,direct_mention,mention', function(bot, message) {
+    console.log('set vol', message);
+    var volume = message.match ? parseInt(message.match[1], 10) : undefined;
+    Spotify.getState(function(err, state){
+        var oldVolume = state.volume;
+
+        if(volume !== undefined && volume >= 0 && volume <= 100) {
+            Spotify.setVolume(volume, function(){
+                bot.reply(message, `Changed volume from ${oldVolume} to ${volume}`);
+            });
+            return;
+        }
+
+        bot.api.reactions.add({
+            timestamp: message.ts,
+            channel: message.channel,
+            name: 'trollface',
+        }, function(err,res) {
+            if (err) {
+                bot.botkit.log("Failed to add emoji reaction :(",err);
+            }
+        });
+        bot.reply(message, 'Volume can be set from 0-100');
     });
 });
 
@@ -178,19 +288,23 @@ controller.on('bot_group_join', function(bot, message) {
 function inviteMessage(inviter, channel) {
     Spotify.getTrack(function(err, track){
         var nowPlaying;
+        let welcomeText = `Thanks for inviting me, ${inviter.name}! Good to be here :)\n`;
 
         if(track) {
             lastTrackId = track.id;
-            nowPlaying = 'Currently playing: '+trackFormatSimple(track);
+            getArtworkUrlFromTrack(track, function(artworkUrl) {
+                bot.say({
+                    text: welcomeText+'Currently playing: '+trackFormatSimple(track),
+                    channel: channel.id
+                });
+            });
         }
         else {
-            nowPlaying = 'There is nothing currently playing';
+            bot.say({
+                text: welcomeText+'There is nothing currently playing',
+                channel: channel.id
+            });
         }
-
-        bot.say({
-            text: `Thanks for inviting me, ${inviter.name}! Good to be here :)\n${nowPlaying}`,
-            channel: channel.id
-        });
     });
 }
 
@@ -202,9 +316,11 @@ setInterval(() => {
 
             lastTrackId = track.id;
 
-            bot.say({
-                text: 'Now playing: ' + trackFormatSimple(track) + ' (' + track['played_count'] + ' plays)',
-                channel: channelId
+            getArtworkUrlFromTrack(track, function(artworkUrl) {
+                bot.say({
+                    text: `Now playing: ${trackFormatSimple(track)} (${track['played_count']} plays)\n${artworkUrl}`,
+                    channel: channelId
+                });
             });
         }
     });
@@ -212,7 +328,32 @@ setInterval(() => {
 
 let trackFormatSimple = (track) => `_${track.name}_ by *${track.artist}*`;
 let trackFormatDetail = (track) => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*\nIt has been played ${track['played_count']} time(s).`;
+let getArtworkUrlFromTrack = (track, callback) => {
+    let trackId = track.id.split(':')[2];
+    let reqUrl = 'https://api.spotify.com/v1/tracks/'+trackId;
+    var req = https.request(reqUrl, function(response) {
+        var str = '';
 
+        response.on('data', function (chunk) {
+            str += chunk;
+        });
+
+        response.on('end', function() {
+            var json = JSON.parse(str);
+            if(json && json.album && json.album.images && json.album.images[1]) {
+                callback(json.album.images[1].url);
+            }
+            else {
+                callback('');
+            }
+        });
+    });
+    req.end();
+
+    req.on('error', function(e) {
+      console.error(e);
+    });
+};
 
 controller.hears(['uptime','identify yourself','who are you','what is your name'],'direct_message,direct_mention,mention',function(bot,message) {
     var hostname = os.hostname();
