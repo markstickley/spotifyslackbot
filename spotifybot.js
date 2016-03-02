@@ -6,8 +6,8 @@ let Botkit = require('botkit');
 let Spotify = require('spotify-node-applescript');
 
 let https = require('https');
-
-var os = require('os');
+let os = require('os');
+let q = require('q');
 
 var lastTrackId;
 var channelId;
@@ -310,6 +310,38 @@ function inviteMessage(inviter, channel) {
 
 
 setInterval(() => {
+    checkRunning()
+    .then(function(running) {
+        if(running) {
+            checkForTrackChange();
+        }
+        else {
+            if(lastTrackId !== null) {
+                bot.say({
+                    text: 'Oh no! Where did Spotify go? It doesn\'t seem to be running 😨',
+                    channel: channelId
+                });
+                lastTrackId = null
+            }
+        }
+    });
+}, 5000);
+
+function checkRunning() {
+    var deferred = q.defer();
+
+    Spotify.isRunning(function(err, isRunning) {
+        if(err || !isRunning) {
+            return deferred.resolve(false);
+        }
+
+        return deferred.resolve(true);
+    });
+
+    return deferred.promise;
+}
+
+function checkForTrackChange() {
     Spotify.getTrack(function(err, track) {
         if(track && (track.id !== lastTrackId)) {
             if(!channelId) return;
@@ -324,7 +356,7 @@ setInterval(() => {
             });
         }
     });
-}, 5000);
+}
 
 let trackFormatSimple = (track) => `_${track.name}_ by *${track.artist}*`;
 let trackFormatDetail = (track) => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*\nIt has been played ${track['played_count']} time(s).`;
