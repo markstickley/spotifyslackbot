@@ -61,6 +61,7 @@ controller.hears(['help'],'direct_message,direct_mention,mention', function(bot,
         'start again/over - Missed the beginning of the track? No problem.\n'+
         'play / pause - plays or pauses the music\n'+
         'volume up / down - increases / decreases the volume\n'+
+        // 'set volume [1-100] - sets the volume\n'+
         'info - I will tell you about this track\n'+
         'detail - I will tell you more about this track\n'
     );
