@@ -56,12 +56,14 @@ var init = () => {
 
 controller.hears(['help'],'direct_message,direct_mention,mention', function(bot, message) {
     bot.reply(message,'You can say these things to me:\n'+
-        'hello - I will greet you back\n'+
-        'info - I will tell you about this track\n'+
-        'detail - I will tell you more about this track\n'+
         'next - Fed up with the track? Skip it.\n'+
+        'previous - Want to hear that again? Just ask.\n'+
+        'start again/over - Missed the beginning of the track? No problem.\n'+
         'play / pause - plays or pauses the music\n'+
-        'volume up / down - increases / decreases the volume');
+        'volume up / down - increases / decreases the volume\n'+
+        'info - I will tell you about this track\n'+
+        'detail - I will tell you more about this track\n'
+    );
 });
 
 controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
@@ -129,7 +131,19 @@ controller.hears(['next'],'direct_message,direct_mention,mention', function(bot,
     });
 });
 
-controller.hears(['play','resume','go'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['previous','prev'],'direct_message,direct_mention,mention', function(bot, message) {
+    Spotify.previous(function(err, track){
+        bot.reply(message, 'Skipping back to the previous track...');
+    });
+});
+
+controller.hears(['start [again|over]'],'direct_message,direct_mention,mention', function(bot, message) {
+    Spotify.jumpTo(0, function(err, track){
+        bot.reply(message, 'Going back to the start of this track...');
+    });
+});
+
+controller.hears(['^play$','resume','go'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getState(function(err, state){
         if(state.state == 'playing') {
             bot.reply(message, 'Already playing...');
