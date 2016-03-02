@@ -169,7 +169,7 @@ controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,menti
     });
 });
 
-controller.hears(['louder( \d+)?','volume up( \d+)?','pump it( \d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['louder( \\d+)?','volume up( \\d+)?','pump it( \\d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
     var increase = message.match ? parseInt(message.match[1], 10) : undefined;
     Spotify.getState(function(err, state){
         var volume = state.volume;
@@ -193,7 +193,7 @@ controller.hears(['louder( \d+)?','volume up( \d+)?','pump it( \d+)?'],'direct_m
     });
 });
 
-controller.hears(['quieter( \d+)?','volume down( \d+)?','shhh( \d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['quieter( \\d+)?','volume down( \\d+)?','shhh( \\d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
     var decrease = message.match ? parseInt(message.match[1], 10) : undefined;
     Spotify.getState(function(err, state){
         var volume = state.volume;
@@ -217,7 +217,7 @@ controller.hears(['quieter( \d+)?','volume down( \d+)?','shhh( \d+)?'],'direct_m
     });
 });
 
-controller.hears('set volume (.*)','direct_message,direct_mention,mention', function(bot, message) {
+controller.hears('set volume (\\d+)','direct_message,direct_mention,mention', function(bot, message) {
     console.log('set vol', message);
     var volume = message.match ? parseInt(message.match[1], 10) : undefined;
     Spotify.getState(function(err, state){
