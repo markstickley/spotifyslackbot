@@ -1,6 +1,6 @@
 ## Spotify bot
 
-A very small script to control Spotify from Slack, using a bot.
+A very small script to control Spotify (on a Mac) from Slack, using a bot.
 
 ### Setup
 
@@ -10,7 +10,7 @@ Log into Slack website, then: Apps -> Build your own -> Custom Integration -> Bo
 
 Name your bot "Spotify" or whatever you like. Copy the key Slack gives you.
 
-#### Configure your bot:
+#### Configure your bot
 
 Create a file named `bot_setup.js` and populate it with:
 
@@ -25,7 +25,7 @@ module.exports = {
 
     npm install
 
-#### Boot up your new bot:
+#### Boot up your new bot
 
     node spotifybot.js
 
@@ -33,7 +33,7 @@ In Slack, invite the bot to a channel (`/invite @bot_name`) and now you can talk
 
 Type `@bot_name help` to get a list of commands
 
-#### Keep your bot running as a background service:
+#### Keep your bot running as a background service
 
 On OS X, background services are either LaunchAgents or LaunchDaemons.
 SpotifySlackBot can only run while a user is logged in, since it depends
