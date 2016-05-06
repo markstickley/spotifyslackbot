@@ -133,8 +133,26 @@ controller.hears(['next'],'direct_message,direct_mention,mention', function(bot,
 });
 
 controller.hears(['previous','prev'],'direct_message,direct_mention,mention', function(bot, message) {
-    Spotify.previous(function(err, track){
-        bot.reply(message, 'Skipping back to the previous track...');
+    var currentTrack;
+    Spotify.getTrack(function(err, track){
+        if(track) {
+            currentTrack = track.id;
+
+            (function previousTrack() {
+                Spotify.previous(function(err, track){
+                    Spotify.getTrack(function(err, track){
+                        if(track) {
+                            if(track.id !== currentTrack) {
+                                bot.reply(message, 'Skipping back to the previous track...');
+                            }
+                            else {
+                                previousTrack();
+                            }
+                        }
+                    });
+                });
+            })();
+        }
     });
 });
 
@@ -219,7 +237,6 @@ controller.hears(['quieter( \\d+)?','volume down( \\d+)?','shhh( \\d+)?'],'direc
 });
 
 controller.hears('set volume (\\d+)','direct_message,direct_mention,mention', function(bot, message) {
-    console.log('set vol', message);
     var volume = message.match ? parseInt(message.match[1], 10) : undefined;
     Spotify.getState(function(err, state){
         var oldVolume = state.volume;
