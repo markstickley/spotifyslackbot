@@ -96,7 +96,7 @@ track = {
     album: 'Highway 61 Revisited',
     disc_number: 1,
     duration: 370,
-    played count: 0,
+    played count: 0, // don't think this works.
     track_number: 1,
     starred: false,
     popularity: 71,
@@ -382,7 +382,7 @@ function checkForTrackChange() {
 
             getArtworkUrlFromTrack(track, function(artworkUrl) {
                 bot.say({
-                    text: `Now playing: ${trackFormatSimple(track)} (${track['played_count']} plays)\n${artworkUrl}`,
+                    text: `Now playing: ${trackFormatSimple(track)}\n${artworkUrl}`,
                     channel: channelId
                 });
             });
@@ -391,7 +391,7 @@ function checkForTrackChange() {
 }
 
 let trackFormatSimple = (track) => `_${track.name}_ by *${track.artist}*`;
-let trackFormatDetail = (track) => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*\nIt has been played ${track['played_count']} time(s).`;
+let trackFormatDetail = (track) => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*`;
 let getArtworkUrlFromTrack = (track, callback) => {
     let trackId = track.id.split(':')[2];
     let reqUrl = 'https://api.spotify.com/v1/tracks/'+trackId;
