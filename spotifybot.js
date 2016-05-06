@@ -59,12 +59,13 @@ controller.hears(['help'],'direct_message,direct_mention,mention', function(bot,
         'next - Fed up with the track? Skip it.\n'+
         'previous - Want to hear that again? Just ask.\n'+
         'start again/over - Missed the beginning of the track? No problem.\n'+
-        'play / pause - plays or pauses the music\n'+
         'volume up / down - increases / decreases the volume\n'+
         'set volume [1-100] - sets the volume\n'+
         'status - I will tell information about the Spotify player\n'+
         'info - I will tell you about this track\n'+
-        'detail - I will tell you more about this track\n'
+        'detail - I will tell you more about this track\n'+
+        'play / pause - plays or pauses the music\n'+
+        'play track / artist / album (by / on artist / album) (by artist) (on shuffle / repeat / shuffle and repeat)'
     );
 });
 
@@ -259,6 +260,34 @@ controller.hears(['^play$','resume','go'],'direct_message,direct_mention,mention
             bot.reply(message, 'Resuming playback...');
         });
     });
+});
+
+let playxRegex = 'play(.*)';
+controller.hears(playxRegex,'direct_message,direct_mention,mention', function(bot, message) {
+    // parse play string
+    let reg = new RegExp(playxRegex);
+    let what = reg.exec(message.text)[1];
+    
+    // potential formats for what:
+    // x on repeat | on shuffle | on shuffle repeat | on repeat shuffle | on shuffle and repeat | repeat shuffle
+    // album - artist | track - artist | track | artist | album | playlist | track from album by artist
+    let shuffleRepeat = /(( ?(on|and)? (repeat|shuffle))*)$/.exec(what)[1];
+    let shuffle = (shuffleRepeat.indexOf('shuffle') !== undefined);
+    let repeat = (shuffleRepeat.indexOf('repeat') !== undefined);
+
+    let match3Regexp = /^\s*(.*)\s+(on|by|from|-)\s+(.*)\s+(by|from|-)\s+(.*)\s*$/;
+    let match2Regexp = /^\s*(.*)\s+(on|by|from|-)\s+(.*)\s*$/;
+    let match1Regexp = /^\s*(.*)\s*$/;
+    let subject = what.substr(0, what.length-shuffleRepeat.length);
+
+    if(subject.match(match3Regexp)) {
+// complicated. Should we presume an order?
+    }
+
+    // look up request and find id / context
+    // Spotify.api.
+    
+    // play.
 });
 
 controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,mention', function(bot, message) {
