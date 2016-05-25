@@ -62,7 +62,7 @@ controller.hears(['help'],'direct_message,direct_mention,mention', function(bot,
         'play / pause - plays or pauses the music\n'+
         'volume up / down - increases / decreases the volume\n'+
         'set volume [1-100] - sets the volume\n'+
-        // 'status - I will tell information about the Spotify player\n'+
+        'status - I will tell information about the Spotify player\n'+
         'info - I will tell you about this track\n'+
         'detail - I will tell you more about this track\n'
     );
@@ -129,28 +129,32 @@ controller.hears(['detail'],'direct_message,direct_mention,mention', function(bo
     });
 });
 
-// Awaiting spotify-node-applescript to publish latest code on github to NPM
-// controller.hears(['status'],'direct_message,direct_mention,mention', function(bot, message) {
-//     // shuffle, repeat, 
-//     q.all(checkRunning(), checkRepeating(), checkShuffling()).
-//         then(function(running, repeating, shuffling) {
-//             var reply = "Current status:\n";
+controller.hears(['status'],'direct_message,direct_mention,mention', function(bot, message) {
+    // shuffle, repeat, 
+    q.all([checkRunning(), getState(), checkRepeating(), checkShuffling()]).
+        then(function(results) {
+            var running = results[0],
+                state = results[1],
+                repeating = results[2],
+                shuffling = results[3];
 
-//             if(running) {
-//                 reply += "Spotify is running \n"+
-//                     "Repeat: " + (repeating ? 'On' : 'Off') + "\n"+
-//                     "Shuffle: " + (shuffling ? 'On' : 'Off') + "\n"+
-//                     "Volume: " + state.volume + "\n"+
-//                     "Position in track: " + state.position + "\n"+
-//                     "State: " + state.state + "\n";
-//             }
-//             else {
-//                 reply += "Spotify is *NOT* running";
-//             }
+            var reply = "Current status:\n";
 
-//             bot.reply(message, reply);
-//         });
-// });
+            if(running && state) {
+                reply += "    Spotify is *running*\n"+
+                    "    Repeat: *" + (repeating ? 'On' : 'Off') + "*\n"+
+                    "    Shuffle: *" + (shuffling ? 'On' : 'Off') + "*\n"+
+                    "    Volume: *" + state.volume + "*\n"+
+                    "    Position in track: *" + state.position + "*\n"+
+                    "    State: *" + state.state + "*\n";
+            }
+            else {
+                reply += "Spotify is *NOT* running";
+            }
+
+            bot.reply(message, reply);
+        });
+});
 
 controller.hears(['next'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.next(function(err, track){
@@ -384,6 +388,21 @@ setInterval(() => {
         }
     });
 }, 5000);
+
+
+function getState() {
+    var deferred = q.defer();
+
+    Spotify.getState(function(err, state) {
+        if(err || !state) {
+            return deferred.resolve(false);
+        }
+
+        return deferred.resolve(state);
+    });
+
+    return deferred.promise;
+}
 
 function checkRunning() {
     var deferred = q.defer();
