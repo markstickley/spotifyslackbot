@@ -212,7 +212,7 @@ controller.hears(['louder( \\d+)?','volume up( \\d+)?','pump it( \\d+)?'],'direc
     });
 });
 
-controller.hears(['quieter( \\d+)?','volume down( \\d+)?','shhh( \\d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['quieter( \\d+)?','volume down( \\d+)?','turn it down( \\d+)?','shh+( \\d+)?'],'direct_message,direct_mention,mention', function(bot, message) {
     var decrease = message.match ? parseInt(message.match[1], 10) : undefined;
     Spotify.getState(function(err, state){
         var volume = state.volume;
