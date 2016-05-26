@@ -91,7 +91,63 @@ controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function
     });
 });
 
-// setRepeating / setShuffling TODO - awaiting spotify-node-applescript NPM update
+controller.hears(['repeat(?: (on|off))?'],'direct_message,direct_mention,mention',function(bot,message) {
+
+    var repeating = true;
+
+    if(message.match && message.match[1]) {
+        if(message.match[1] === 'on') {
+            repeating = true;
+        }
+        else if(message.match[1] === 'off') {
+            repeating = false;
+        }
+        else {
+            return;
+        }
+    }
+
+    var repeatingText = repeating ? 'on' : 'off';
+
+    Spotify.setRepeating(repeating, function(err) {
+        if(err) {
+            bot.reply(message, "Error turning repeat "+repeatingText);
+        }
+        else {
+            bot.reply(message, "Repeat is now "+repeatingText);
+        }
+    });
+    
+});
+
+controller.hears(['shuffle(?: (on|off))?'],'direct_message,direct_mention,mention',function(bot,message) {
+
+    var shuffling = true;
+
+    if(message.match && message.match[1]) {
+        if(message.match[1] === 'on') {
+            shuffling = true;
+        }
+        else if(message.match[1] === 'off') {
+            shuffling = false;
+        }
+        else {
+            return;
+        }
+    }
+
+    var shufflingText = shuffling ? 'on' : 'off';
+
+    Spotify.setShuffling(shuffling, function(err) {
+        if(err) {
+            bot.reply(message, "Error turning shuffle "+shufflingText);
+        }
+        else {
+            bot.reply(message, "Shuffle is now "+shufflingText);
+        }
+    });
+    
+});
 
 /*
 track = {
@@ -186,7 +242,7 @@ controller.hears(['previous','prev'],'direct_message,direct_mention,mention', fu
     });
 });
 
-controller.hears(['start [again|over]'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['start (again|over)'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.jumpTo(0, function(err, track){
         bot.reply(message, 'Going back to the start of this track...');
     });
