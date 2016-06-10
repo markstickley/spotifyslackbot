@@ -20,6 +20,7 @@ var bot = controller.spawn({
     token: setup.token
 }).startRTM();
 
+
 var init = () => {
     bot.api.channels.list({}, function(err, response) {
         if(err) {
@@ -56,16 +57,19 @@ var init = () => {
 
 controller.hears(['help'],'direct_message,direct_mention,mention', function(bot, message) {
     bot.reply(message,'You can say these things to me:\n'+
-        'next - Fed up with the track? Skip it.\n'+
-        'previous - Want to hear that again? Just ask.\n'+
-        'start again/over - Missed the beginning of the track? No problem.\n'+
-        'volume up / down - increases / decreases the volume\n'+
-        'set volume [1-100] - sets the volume\n'+
-        'status - I will tell information about the Spotify player\n'+
-        'info - I will tell you about this track\n'+
-        'detail - I will tell you more about this track\n'+
-        'play / pause - plays or pauses the music\n'+
-        'play track / artist / album (by / on artist / album) (by artist) (on shuffle / repeat / shuffle and repeat)'
+        '\t⦿ *next* – _Fed up with the track? Skip it._\n'+
+        '\t⦿ *previous* – _Want to hear that again? Just ask._\n'+
+        '\t⦿ *start again* / *over* – _Missed the beginning of the track? No problem._\n'+
+        '\t⦿ *volume up* / *down* – _increases / decreases the volume_\n'+
+        '\t⦿ *set volume* [1-100] – _sets the volume_\n'+
+        '\t⦿ *status* – _I will tell information about the Spotify player_\n'+
+        '\t⦿ *info* – _I will tell you about this track_\n'+
+        '\t⦿ *detail* – _I will tell you more about this track_\n'+
+        '\t⦿ *play* / *pause* – _plays or pauses the music_\n'+
+        '\t⦿ *play track* [track name], *play track* [track name] - [artist] – _plays a specific track_\n'+
+        '\t⦿ *play track* [track name] | [album] – _plays a specific track in the context of an album. You can add_ - [artist] _to either the track or the album to be more specific_'
+        // 'play album [album name], play album [album name] - artist – plays a specific album\n'+
+        // 'play playlist [playlist name] – plays a specific playlist\n'+
     );
 });
 
@@ -262,32 +266,79 @@ controller.hears(['^play$','resume','go'],'direct_message,direct_mention,mention
     });
 });
 
-let playxRegex = 'play(.*)';
-controller.hears(playxRegex,'direct_message,direct_mention,mention', function(bot, message) {
+
+let playTrackRegex = '^play track (.*)$';
+controller.hears(playTrackRegex,'direct_message,direct_mention,mention', function(bot, message) {
     // parse play string
-    let reg = new RegExp(playxRegex);
-    let what = reg.exec(message.text)[1];
-    
-    // potential formats for what:
-    // x on repeat | on shuffle | on shuffle repeat | on repeat shuffle | on shuffle and repeat | repeat shuffle
-    // album - artist | track - artist | track | artist | album | playlist | track from album by artist
-    let shuffleRepeat = /(( ?(on|and)? (repeat|shuffle))*)$/.exec(what)[1];
-    let shuffle = (shuffleRepeat.indexOf('shuffle') !== undefined);
-    let repeat = (shuffleRepeat.indexOf('repeat') !== undefined);
+    let reg = new RegExp(playTrackRegex);
+    let track = reg.exec(message.text)[1];
 
-    let match3Regexp = /^\s*(.*)\s+(on|by|from|-)\s+(.*)\s+(by|from|-)\s+(.*)\s*$/;
-    let match2Regexp = /^\s*(.*)\s+(on|by|from|-)\s+(.*)\s*$/;
-    let match1Regexp = /^\s*(.*)\s*$/;
-    let subject = what.substr(0, what.length-shuffleRepeat.length);
+    var context, artist;
 
-    if(subject.match(match3Regexp)) {
-// complicated. Should we presume an order?
+    var contextSplit = track.split('|');
+    if(contextSplit.length > 1) {
+        // context found
+        track = contextSplit[0];
+        context = contextSplit[1]; // discard any additional contexts
     }
 
-    // look up request and find id / context
-    // Spotify.api.
-    
-    // play.
+    var artistSplit = track.split('-');
+    if(artistSplit.length > 1) {
+        // artist found
+        track = artistSplit[0];
+        artist = artistSplit[1]; // discard any additional separators
+    }
+
+    let promises = [
+        searchFor(track+(artist ? ' - '+artist : ''), ['track'])
+    ];
+
+    if(context) {
+        let contextPromise = searchFor(context, ['album','playlist']).
+            then(results => { // update with full album data (including artists)
+                var albumIds = results.albums.items.map(album => album.id);
+                var deferred = q.defer();
+                getAlbumsFromIds(albumIds).then(albums => {
+                    results.albums.items = albums;
+                    deferred.resolve(results);
+                }).
+                catch(err => {
+                    deferred.reject(err);
+                });
+
+                return deferred.promise;
+            });
+
+        promises.push(contextPromise);
+    }
+
+    q.all(promises).
+    then(results => {
+        let parsedResult = parseSearchResultsForTrack(results[0], results[1], track, artist, context);
+        return parsedResult.length ? parsedResult : q.reject();
+    }).
+    then(results => {
+        if(results.length === 1) {
+            return playTrack(results[0]).
+                then(ok => {
+                    bot.reply(message, 'I couldn\'t find that track on that album, but playing my best guess for the track name anyway...');
+                });
+        }
+        else if(results.length === 2) {
+            return playTrack(results[0], results[1]).
+                then(ok => {
+                    bot.reply(message, 'No problem 👍');
+                });
+        }
+        else {
+            return q.reject();
+        }
+    }).
+    catch(err => {
+        console.log('Problem playing track: \"'+message.text+'\"', err);
+        bot.reply(message, 'Sorry, I\'m having trouble with that request 😢');
+    });
+
 });
 
 controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,mention', function(bot, message) {
@@ -548,8 +599,153 @@ function checkForTrackChange() {
     });
 }
 
-let trackFormatSimple = (track) => `_${track.name}_ by *${track.artist}*`;
-let trackFormatDetail = (track) => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*`;
+
+/**
+ * Calls Spotify API to search for an item
+ * @param {String} query
+ * @param {String[]} resultTypes Any of 'track', 'arsit', 'album', 'playlist'
+ * @return {Promise} Resolved with successful query response payload
+ */
+function searchFor(query, resultTypes) {
+    let deferred = q.defer();
+    let reqUrl = 'https://api.spotify.com/v1/search?limit=50&q='+encodeURIComponent(query)+'&type='+resultTypes.join(',');
+
+    var req = https.request(reqUrl, function(response) {
+        var str = '';
+
+        response.on('data', function (chunk) {
+            str += chunk;
+        });
+
+        response.on('end', function() {
+            var json = JSON.parse(str);
+            if(json && (json.albums || json.artists || json.tracks || json.playlists)) {
+                deferred.resolve(json);
+            }
+            else {
+                deferred.reject('Bad response');
+            }
+        });
+    });
+    req.end();
+
+    req.on('error', function(e) {
+      console.error(e);
+    });
+
+    return deferred.promise;
+}
+
+
+/**
+ * Parses the search results for a track (and optionally a context) for the correct URI based on the query text
+ * @param {Object} trackResults
+ * @param {Object | undefined} contextResults
+ * @param {String} track
+ * @param {String} artist
+ * @param {String} context
+ * @return {String[]} Array containing the track Uri and context Uri if provided
+ */
+function parseSearchResultsForTrack(trackResults, contextResults, track, artist, context) {
+    let result = [];
+    if(trackResults.tracks.items.length) {
+        if(contextResults) {
+            trackResults.tracks.items.some(track => {
+                contextResults.albums.items.some(album => {
+                    if(track.album.uri === album.uri) {
+                        result.push(track.uri);
+                        result.push(album.uri);
+                        return true;
+                    }
+                });
+
+                if(result.length) {
+                    return true;
+                }
+            });
+
+            if(result.length) return result;
+
+        }
+
+        result.push(trackResults.tracks.items[0].uri);
+    }
+
+    return result;
+}
+
+
+/**
+ * Plays a track, optionally within a context
+ */
+function playTrack(trackUri, contextUri) {
+    let deferred = q.defer();
+
+    if(contextUri) {
+        Spotify.playTrackInContext(trackUri, contextUri, err => {
+            if(err) {
+                deferred.reject(err);
+            }
+            else {
+                deferred.resolve(true);
+            }
+        });
+    }
+    else {
+        Spotify.playTrack(trackUri, err => {
+            if(err) {
+                deferred.reject(err);
+            }
+            else {
+                deferred.resolve(true);
+            }
+        });
+    }
+
+    return deferred.promise;
+}
+
+
+/**
+ * Fetches a list of albums from IDs from the Spotify API
+ * @param {String[]} albumIds Array of album IDs
+ * @return {Promise} Resolved with array of complete album data
+ */
+function getAlbumsFromIds(albumIds) {
+    let deferred = q.defer();
+    let reqUrl = 'https://api.spotify.com/v1/albums?ids='+albumIds.join(',');
+
+    var req = https.request(reqUrl, function(response) {
+        var str = '';
+
+        response.on('data', function (chunk) {
+            str += chunk;
+        });
+
+        response.on('end', function() {
+            var json = JSON.parse(str);
+            if(json && json.albums && json.albums.length) {
+                deferred.resolve(json.albums);
+            }
+            else {
+                deferred.reject('Bad response');
+            }
+        });
+    });
+    req.end();
+
+    req.on('error', function(e) {
+      console.error(e);
+    });
+
+    return deferred.promise;
+}
+
+
+let trackFormatSimple = track => `_${track.name}_ by *${track.artist}*`;
+
+let trackFormatDetail = track => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*`;
+
 let getArtworkUrlFromTrack = (track, callback) => {
     let trackId = track.id.split(':')[2];
     let reqUrl = 'https://api.spotify.com/v1/tracks/'+trackId;
