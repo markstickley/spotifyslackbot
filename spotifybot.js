@@ -465,6 +465,12 @@ controller.hears('set volume (\\d+)','direct_message,direct_mention,mention', fu
 });
 
 
+controller.hears('\\brick ?roll\\b','message,direct_message,direct_mention,mention', function(bot, message) {
+    playTrack('spotify:track:4uLU6hMCjMI75M1A2tKUQC').
+    then(() => bot.reply(message, ':trollface:'));
+});
+
+
 controller.on('bot_channel_join', function(bot, message) {
     let inviterId = message.inviter;
     let channelId = message.channel;
