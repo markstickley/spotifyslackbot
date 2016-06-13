@@ -341,6 +341,43 @@ controller.hears(playTrackRegex,'direct_message,direct_mention,mention', functio
 
 });
 
+let playAlbumRegex = '^play album (.*)$';
+controller.hears(playAlbumRegex,'direct_message,direct_mention,mention', function(bot, message) {
+    // parse play string
+    let reg = new RegExp(playAlbumRegex);
+    let album = reg.exec(message.text)[1];
+
+    var artist;
+
+    var artistSplit = album.split('-');
+    if(artistSplit.length > 1) {
+        // artist found
+        album = artistSplit[0];
+        artist = artistSplit[1]; // discard any additional separators
+    }
+
+    searchFor(album+(artist ? ' - '+artist : ''), ['album']).
+    then(results => {
+        return parseSearchResultsForAlbum(results);
+    }).
+    then(results => {
+        if(results.length === 2) {
+            return playTrack(results[0], results[1]).
+                then(ok => {
+                    bot.reply(message, 'No problem 👍');
+                });
+        }
+        else {
+            return q.reject();
+        }
+    }).
+    catch(err => {
+        console.log('Problem playing album: \"'+message.text+'\"', err);
+        bot.reply(message, 'Sorry, I\'m having trouble with that request 😢');
+    });
+
+});
+
 controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getState(function(err, state){
         if(state.state != 'playing') {
@@ -641,12 +678,9 @@ function searchFor(query, resultTypes) {
  * Parses the search results for a track (and optionally a context) for the correct URI based on the query text
  * @param {Object} trackResults
  * @param {Object | undefined} contextResults
- * @param {String} track
- * @param {String} artist
- * @param {String} context
- * @return {String[]} Array containing the track Uri and context Uri if provided
+ * @return {String[]} Array containing the track Uri (and context Uri, if provided)
  */
-function parseSearchResultsForTrack(trackResults, contextResults, track, artist, context) {
+function parseSearchResultsForTrack(trackResults, contextResults) {
     let result = [];
     if(trackResults.tracks.items.length) {
         if(contextResults) {
@@ -672,6 +706,22 @@ function parseSearchResultsForTrack(trackResults, contextResults, track, artist,
     }
 
     return result;
+}
+
+
+/**
+ * Uses the search results to construct an array of the first track on the album's URI and the album's URI
+ * @param {Object} albumResults
+ * @return {Promise} Resolved with Array containing the track Uri and album Uri
+ */
+function parseSearchResultsForAlbum(albumResults) {
+    return getAlbumsFromIds([albumResults.albums.items[0].id]).
+    then(results => {
+        return [results[0].tracks.items[0].uri, results[0].uri];
+    }).
+    catch(err => {
+        return q.reject(err);
+    });
 }
 
 
