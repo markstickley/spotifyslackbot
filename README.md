@@ -57,3 +57,25 @@ Finally, launch your background service for the first time (it will now auto-sta
 
     launchctl load ~/Library/LaunchAgents/spotifybot.launchagent.plist
 
+
+### Upgrading
+
+If you are lagging behind on an old version of SpotifySlackBot, use the following steps to upgrade:
+
+If you are running the bot as a background service, stop it with
+
+    launchctl unload ~/Library/LaunchAgents/spotifybot.launchagent.plist
+
+Otherwise, just stop the script as you would normally.
+
+Pull the latest version from github
+
+    git pull origin
+
+Update the npm dependencies
+
+    npm install
+
+You're all set! Restart from the command line, or using this command to start again as a background service
+
+    launchctl load ~/Library/LaunchAgents/spotifybot.launchagent.plist
