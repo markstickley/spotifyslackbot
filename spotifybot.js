@@ -55,7 +55,7 @@ var init = () => {
     });
 };
 
-controller.hears(['help'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^help$'],'direct_message,direct_mention,mention', function(bot, message) {
     bot.reply(message,'You can say these things to me:\n'+
         '\t⦿ *next* – _Fed up with the track? Skip it._\n'+
         '\t⦿ *previous* – _Want to hear that again? Just ask._\n'+
@@ -73,7 +73,7 @@ controller.hears(['help'],'direct_message,direct_mention,mention', function(bot,
     );
 });
 
-controller.hears(['hello','hi'],'direct_message,direct_mention,mention',function(bot,message) {
+controller.hears(['^hello$','^hi$'],'direct_message,direct_mention,mention',function(bot,message) {
 
     bot.api.reactions.add({
         timestamp: message.ts,
@@ -170,7 +170,7 @@ track = {
     spotify_url: 'spotify:track:3AhXZa8sUQht0UEdBJgpGc' }
 }
 */
-controller.hears(['what is this','what\'s this','info','playing','what is playing','what\'s playing'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['what is this','what\'s this','^info$','^playing$','what is playing','what\'s playing'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getTrack(function(err, track){
         if(track) {
             lastTrackId = track.id;
@@ -179,7 +179,7 @@ controller.hears(['what is this','what\'s this','info','playing','what is playin
     });
 });
 
-controller.hears(['detail'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^detail$'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getTrack(function(err, track){
         if(track) {
             lastTrackId = track.id;
@@ -190,7 +190,7 @@ controller.hears(['detail'],'direct_message,direct_mention,mention', function(bo
     });
 });
 
-controller.hears(['status'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^status$'],'direct_message,direct_mention,mention', function(bot, message) {
     // shuffle, repeat, 
     q.all([checkRunning(), getState(), checkRepeating(), checkShuffling()]).
         then(function(results) {
@@ -253,7 +253,7 @@ controller.hears(['start (again|over)'],'direct_message,direct_mention,mention',
     });
 });
 
-controller.hears(['^play$','resume','go'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^play$','^resume$','^go$'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getState(function(err, state){
         if(state.state == 'playing') {
             bot.reply(message, 'Already playing...');
@@ -378,7 +378,7 @@ controller.hears(playAlbumRegex,'direct_message,direct_mention,mention', functio
 
 });
 
-controller.hears(['stop','pause','shut up'],'direct_message,direct_mention,mention', function(bot, message) {
+controller.hears(['^stop$','^pause$','^shut up$'],'direct_message,direct_mention,mention', function(bot, message) {
     Spotify.getState(function(err, state){
         if(state.state != 'playing') {
             bot.reply(message, 'Not currently playing...');
