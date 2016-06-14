@@ -822,9 +822,30 @@ function getAlbumsFromIds(albumIds) {
 }
 
 
-let trackFormatSimple = track => `_${track.name}_ by *${track.artist}*`;
+let trackFormatSimple = track => {
+    var out = '';
+    if(track.name) {
+        out += `_${track.name}_`;
+        if(track.artist) {
+            out += ` by *${track.artist}*`;
+        }
+    }
+    return out;
+};
 
-let trackFormatDetail = track => `_${track.name}_ by _${track.artist}_ is from the album *${track.album}*`;
+let trackFormatDetail = track => {
+    var out = '';
+    if(track.name) {
+        out += `_${track.name}_`;
+        if(track.artist) {
+            out += ` by _${track.artist}_`;
+        }
+        if(track.album) {
+            out += ` is from the album *${track.album}*`;
+        }
+    }
+    return out;
+};
 
 let getArtworkUrlFromTrack = (track, callback) => {
     let trackId = track.id.split(':')[2];
