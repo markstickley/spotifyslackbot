@@ -10,6 +10,7 @@ let os = require('os');
 let q = require('q');
 
 var lastTrackId;
+var lastVolume = 0;
 var channelId;
 
 var controller = Botkit.slackbot({
@@ -631,6 +632,29 @@ function checkForTrackChange() {
             if(!channelId) return;
 
             lastTrackId = track.id;
+
+            if(setup.muteAds) {
+                if(!track.artist) {
+                    getState().then(state => {
+                        if(lastVolume === 0) { // not currently muting (can't fully mute or playback stops)
+                            lastVolume = state.volume;
+                            Spotify.setVolume(1, function(){
+                                bot.say({
+                                    text: `Back soon...`,
+                                    channel: channelId
+                                });
+                            });
+                        }
+                    });
+                    return;
+                }
+                else {
+                    if(lastVolume !== 0) {
+                        Spotify.setVolume(lastVolume);
+                        lastVolume = 0;
+                    }
+                }
+            }
 
             getArtworkUrlFromTrack(track, function(artworkUrl) {
                 bot.say({
