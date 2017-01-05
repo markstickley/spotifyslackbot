@@ -68,8 +68,8 @@ controller.hears(['^help$'],'direct_message,direct_mention,mention', function(bo
         '\t⦿ *detail* – _I will tell you more about this track_\n'+
         '\t⦿ *play* / *pause* – _plays or pauses the music_\n'+
         '\t⦿ *play track* [track name], *play track* [track name] - [artist] – _plays a specific track_\n'+
-        '\t⦿ *play track* [track name] | [album] – _plays a specific track in the context of an album. You can add_ - [artist] _to either the track or the album to be more specific_'
-        // 'play album [album name], play album [album name] - artist – plays a specific album\n'+
+        '\t⦿ *play track* [track name] | [album] – _plays a specific track in the context of an album. You can add_ - [artist] _to either the track or the album to be more specific_\n'+
+        '\t⦿ *play album* [album name], play album [album name] - artist – _plays a specific album_'
         // 'play playlist [playlist name] – plays a specific playlist\n'+
     );
 });
